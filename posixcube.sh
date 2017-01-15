@@ -766,13 +766,13 @@ cube_service() {
   cube_check_numargs 1 "${@}"
   if cube_command_exists systemctl ; then
     if [ "${1}" = "daemon-reload" ]; then
-      systemctl $1 || cube_check_return
+      sudo systemctl $1 || cube_check_return
     else
-      systemctl $1 $2 || cube_check_return
+      sudo systemctl $1 $2 || cube_check_return
     fi
   elif cube_command_exists service ; then
     if [ "${1}" != "daemon-reload" ]; then
-      service $2 $1 || cube_check_return
+      sudo service $2 $1 || cube_check_return
     fi
   else
     cube_throw "Could not find service program"
@@ -833,7 +833,7 @@ cube_package() {
   elif cube_command_exists apt-get ; then
     cube_echo "Executing apt-get -y ${@}"
     # -o Dpkg::Options::="--force-confnew"
-    DEBIAN_FRONTEND=noninteractive apt-get -y "${@}" || cube_check_return
+    DEBIAN_FRONTEND=noninteractive sudo apt-get -y "${@}" || cube_check_return
   else
     cube_throw "cube_package has not implemented your operating system yet"
   fi
@@ -2119,7 +2119,7 @@ HEREDOC
       for p666_host in ${p666_hosts}; do
         # Debian doesn't have rsync installed by default
         #p666_remote_ssh "[ ! -d \"${p666_cubedir}\" ] && mkdir -p ${p666_cubedir}"
-        p666_remote_ssh "[ ! -d \"${p666_cubedir}\" ] && mkdir -p ${p666_cubedir}; RC=\$?; command -v rsync >/dev/null 2>&1 || (command -v apt-get >/dev/null 2>&1 && apt-get -y install rsync); exit \${RC};"
+        p666_remote_ssh "[ ! -d \"${p666_cubedir}\" ] && mkdir -p ${p666_cubedir}; RC=\$?; command -v rsync >/dev/null 2>&1 || (command -v sudo apt-get >/dev/null 2>&1 && sudo apt-get -y install rsync); exit \${RC};"
       done
       if [ "${p666_wait_pids}" != "" ]; then
         [ ${p666_debug} -eq 1 ] && p666_printf "Waiting on initialization PIDs: ${p666_wait_pids} ...\n"
