@@ -54,6 +54,7 @@ usage: posixcube.sh -h HOST... [OPTION]... COMMAND...
   -c CUBE   Execute a cube. Option may be specified multiple times. If COMMANDS
             are also specified, cubes are run first.
   -u USER   SSH user. Defaults to ${USER}.
+  -t PORT   SSH port. Defaults to 22
   -e ENVAR  Shell script with environment variable assignments which is
             uploaded and sourced on each HOST. Option may be specified
             multiple times. Files ending with .enc will be decrypted
@@ -111,6 +112,10 @@ Examples (assuming posixcube.sh is on ${PATH}, or executed absolutely):
     Run the `uptime` command on host `socrates`. This is not very different
     from ssh ${USER}@socrates uptime, except that COMMANDs (`uptime`) have
     access to the cube_* public functions.
+
+  posixcube.sh -h socrates -t 3344 uptime
+
+    Simiar to above but use SSH port 3344 instead
   
   posixcube.sh -h socrates -c test.sh
   
@@ -1490,6 +1495,7 @@ if [ "${POSIXCUBE_APIS_ONLY}" = "" ]; then
   p666_keep_exec=0
   p666_skip_host_errors=0
   p666_hosts=""
+  p666_port="22"
   p666_cubes=""
   p666_include_cubes=""
   p666_envar_scripts=""
@@ -1639,7 +1645,7 @@ HEREDOC
     # getopts processing based on http://stackoverflow.com/a/14203146/5657303
     OPTIND=1 # Reset in case getopts has been used previously in the shell.
     
-    while getopts "?vdqbskyah:u:c:e:p:w:r:o:z:i:" p666_opt "${@}"; do
+    while getopts "?vdqbskyah:u:c:e:p:t:w:r:o:z:i:" p666_opt "${@}"; do
       case "$p666_opt" in
       \?)
         p666_show_usage
@@ -1693,6 +1699,9 @@ HEREDOC
         ;;
       u)
         p666_user="${OPTARG}"
+        ;;
+      t)
+        p666_port="${OPTARG}"
         ;;
       p)
         p666_envar_scripts_password="${OPTARG}"
@@ -1888,10 +1897,10 @@ HEREDOC
       [ ${p666_debug} -eq 1 ] && p666_printf "[${POSIXCUBE_COLOR_GREEN}${p666_host}${POSIXCUBE_COLOR_RESET}] Executing ssh ${p666_user}@${p666_host} \"${p666_remote_ssh_commands}\" ...\n"
       
       if [ ${p666_parallel} -gt 0 ] && [ ${p666_async} -eq 1 ]; then
-        ssh -o ConnectTimeout=10 ${p666_user}@${p666_host} ${p666_remote_ssh_commands} 2>&1 &
+        ssh -o ConnectTimeout=10 -p ${p666_port} ${p666_user}@${p666_host} ${p666_remote_ssh_commands} 2>&1 &
         p666_wait_pids=$(cube_append_str "${p666_wait_pids}" "$!")
       else
-        ssh -o ConnectTimeout=10 ${p666_user}@${p666_host} ${p666_remote_ssh_commands} 2>&1
+        ssh -o ConnectTimeout=10 -p ${p666_port} ${p666_user}@${p666_host} ${p666_remote_ssh_commands} 2>&1
         p666_host_output_result=$?
         
         [ ${p666_debug} -eq 1 ] && p666_printf "Finished executing on ${p666_host}\n"
@@ -1909,11 +1918,11 @@ HEREDOC
       # Don't use -a so that ownership is picked up from the specified user
       if [ ${p666_parallel} -gt 0 ] && [ ${p666_async} -eq 1 ]; then
         [ ${p666_debug} -eq 1 ] && p666_printf "Rsyncing in background: ${p666_remote_transfer_source} ${p666_user}@${p666_host}:${p666_remote_transfer_dest}\n"
-        rsync -rlpt ${p666_remote_transfer_source} "${p666_user}@${p666_host}:${p666_remote_transfer_dest}" &
+        rsync -rlpt -e "ssh -p ${p666_port}" ${p666_remote_transfer_source} "${p666_user}@${p666_host}:${p666_remote_transfer_dest}" &
         p666_wait_pids=$(cube_append_str "${p666_wait_pids}" "$!")
       else
         [ ${p666_debug} -eq 1 ] && p666_printf "Rsyncing in foreground: ${p666_remote_transfer_source} ${p666_user}@${p666_host}:${p666_remote_transfer_dest}\n"
-        rsync -rlpt ${p666_remote_transfer_source} "${p666_user}@${p666_host}:${p666_remote_transfer_dest}"
+        rsync -rlpt -e "ssh -p ${p666_port}" ${p666_remote_transfer_source} "${p666_user}@${p666_host}:${p666_remote_transfer_dest}"
         p666_host_output_result=$?
         p666_handle_remote_response "rsync"
       fi
